@@ -1,5 +1,6 @@
 using backend.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers;
 
@@ -17,14 +18,14 @@ public class AuthorsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Author>>> GetAuthors()
     {
-        var authors = await Task.FromResult(_context.Authors.ToList());
+        var authors = await _context.Authors.ToListAsync();
         return Ok(authors);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Author>> GetAuthor(int id)
     {
-        var author = await Task.FromResult(_context.Authors.FirstOrDefault(a => a.Id == id));
+        var author = await _context.Authors.FirstOrDefaultAsync(a => a.Id == id);
         
         if (author == null)
             return NotFound();
@@ -36,21 +37,43 @@ public class AuthorsController : ControllerBase
     public async Task<ActionResult<Author>> CreateAuthor(Author author)
     {
         _context.Authors.Add(author);
-        await Task.FromResult(_context.SaveChanges());
+        await _context.SaveChangesAsync();
         
         return CreatedAtAction(nameof(GetAuthor), new { id = author.Id }, author);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateAuthor(int id, Author author)
+    {
+        if (id != author.Id)
+            return BadRequest();
+
+        _context.Entry(author).State = EntityState.Modified;
+        
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!_context.Authors.Any(a => a.Id == id))
+                return NotFound();
+            throw;
+        }
+
+        return NoContent();
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteAuthor(int id)
     {
-        var author = await Task.FromResult(_context.Authors.FirstOrDefault(a => a.Id == id));
+        var author = await _context.Authors.FirstOrDefaultAsync(a => a.Id == id);
         
         if (author == null)
             return NotFound();
 
         _context.Authors.Remove(author);
-        await Task.FromResult(_context.SaveChanges());
+        await _context.SaveChangesAsync();
         
         return NoContent();
     }

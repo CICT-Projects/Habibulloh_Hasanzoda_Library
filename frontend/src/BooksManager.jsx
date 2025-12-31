@@ -5,11 +5,11 @@ const API_URL = 'http://localhost:5000/api/books';
 
 export default function BooksManager() {
   const [books, setBooks] = useState([]);
-  const [formData, setFormData] = useState({ title: '', year: '' });
+  const [formData, setFormData] = useState({ id: null, title: '', year: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
-  // Загрузка книг при старте
   useEffect(() => {
     fetchBooks();
   }, []);
@@ -22,7 +22,7 @@ export default function BooksManager() {
       setError(null);
     } catch (err) {
       setError('Ошибка загрузки книг');
-      console.error(err);
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -36,7 +36,7 @@ export default function BooksManager() {
     }));
   };
 
-  const handleAddBook = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.title.trim() || !formData.year) {
@@ -45,28 +45,49 @@ export default function BooksManager() {
     }
 
     try {
-      const response = await axios.post(API_URL, {
-        title: formData.title,
-        year: formData.year
-      });
-      setBooks([...books, response.data]);
-      setFormData({ title: '', year: '' });
+      if (editingId) {
+        // Update
+        await axios.put(`${API_URL}/${editingId}`, {
+          id: editingId,
+          title: formData.title,
+          year: formData.year
+        });
+        setBooks(books.map(b => b.id === editingId ? { id: editingId, title: formData.title, year: formData.year } : b));
+      } else {
+        // Create
+        const response = await axios.post(API_URL, {
+          title: formData.title,
+          year: formData.year
+        });
+        setBooks([...books, response.data]);
+      }
+      resetForm();
       setError(null);
     } catch (err) {
-      setError('Ошибка добавления книги');
-      console.error(err);
+      setError(editingId ? 'Ошибка обновления книги' : 'Ошибка добавления книги');
+      console.error('Submit error:', err);
     }
   };
 
-  const handleDeleteBook = async (id) => {
+  const handleEdit = (book) => {
+    setFormData({ id: book.id, title: book.title, year: book.year });
+    setEditingId(book.id);
+  };
+
+  const handleDelete = async (id) => {
     try {
       await axios.delete(`${API_URL}/${id}`);
       setBooks(books.filter(book => book.id !== id));
       setError(null);
     } catch (err) {
       setError('Ошибка удаления книги');
-      console.error(err);
+      console.error('Delete error:', err);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({ id: null, title: '', year: '' });
+    setEditingId(null);
   };
 
   if (loading) return <div>Загрузка...</div>;
@@ -75,7 +96,7 @@ export default function BooksManager() {
     <div style={styles.container}>
       <h1>Управление Книгами</h1>
 
-      <form onSubmit={handleAddBook} style={styles.form}>
+      <form onSubmit={handleSubmit} style={styles.form}>
         <div style={styles.formGroup}>
           <label>Название:</label>
           <input
@@ -100,14 +121,23 @@ export default function BooksManager() {
           />
         </div>
 
-        <button type="submit" style={styles.button}>Добавить книгу</button>
+        <div style={styles.buttonGroup}>
+          <button type="submit" style={styles.button}>
+            {editingId ? 'Обновить' : 'Добавить'}
+          </button>
+          {editingId && (
+            <button type="button" onClick={resetForm} style={styles.cancelButton}>
+              Отмена
+            </button>
+          )}
+        </div>
       </form>
 
       {error && <p style={styles.error}>{error}</p>}
 
       <hr style={styles.separator} />
 
-      <h2>Список книг</h2>
+      <h2>Список книг ({books.length})</h2>
       {books.length === 0 ? (
         <p>Нет книг</p>
       ) : (
@@ -117,12 +147,20 @@ export default function BooksManager() {
               <div>
                 <strong>{book.title}</strong> ({book.year})
               </div>
-              <button
-                onClick={() => handleDeleteBook(book.id)}
-                style={styles.deleteButton}
-              >
-                Удалить
-              </button>
+              <div style={styles.actions}>
+                <button
+                  onClick={() => handleEdit(book)}
+                  style={styles.editButton}
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={() => handleDelete(book.id)}
+                  style={styles.deleteButton}
+                >
+                  ✕
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -156,9 +194,23 @@ const styles = {
     borderRadius: '4px',
     fontSize: '14px',
   },
+  buttonGroup: {
+    display: 'flex',
+    gap: '10px',
+  },
   button: {
+    flex: 1,
     padding: '10px 20px',
     backgroundColor: '#4CAF50',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
+  cancelButton: {
+    padding: '10px 20px',
+    backgroundColor: '#757575',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -187,8 +239,21 @@ const styles = {
     borderRadius: '4px',
     border: '1px solid #eee',
   },
+  actions: {
+    display: 'flex',
+    gap: '5px',
+  },
+  editButton: {
+    padding: '5px 10px',
+    backgroundColor: '#2196F3',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '12px',
+  },
   deleteButton: {
-    padding: '5px 15px',
+    padding: '5px 10px',
     backgroundColor: '#f44336',
     color: 'white',
     border: 'none',

@@ -1,74 +1,41 @@
 import { useState } from 'react'
-import BooksManager from './BooksManager'
-import AuthorsManager from './AuthorsManager'
+import BooksManager from './components/Books'
+import AuthorsManager from './components/Authors'
 import './App.css'
 
 function App() {
   const [activeTab, setActiveTab] = useState('books')
 
   return (
-    <div style={styles.appContainer}>
-      <header style={styles.header}>
-        <h1>Библиотека</h1>
-        <nav style={styles.nav}>
-          <button 
-            onClick={() => setActiveTab('books')}
-            style={{
-              ...styles.navButton,
-              backgroundColor: activeTab === 'books' ? '#4CAF50' : '#ccc'
-            }}
-          >
-            Книги
-          </button>
-          <button 
-            onClick={() => setActiveTab('authors')}
-            style={{
-              ...styles.navButton,
-              backgroundColor: activeTab === 'authors' ? '#4CAF50' : '#ccc'
-            }}
-          >
-            Авторы
-          </button>
-        </nav>
+    <div className="app-container">
+      <header className="app-header">
+        <div className="header-inner">
+          <h1 className="brand">📚 Библиотека</h1>
+          <nav className="nav">
+            <button 
+              className={`nav-button ${activeTab === 'books' ? 'active' : ''}`} 
+              onClick={() => setActiveTab('books')}
+            >
+              📖 Книги
+            </button>
+            <button 
+              className={`nav-button ${activeTab === 'authors' ? 'active' : ''}`} 
+              onClick={() => setActiveTab('authors')}
+            >
+              ✍️ Авторы
+            </button>
+          </nav>
+        </div>
       </header>
 
-      <main style={styles.main}>
-        {activeTab === 'books' && <BooksManager />}
-        {activeTab === 'authors' && <AuthorsManager />}
+      <main className="app-main">
+        <div className="content">
+          {activeTab === 'books' && <BooksManager />}
+          {activeTab === 'authors' && <AuthorsManager />}
+        </div>
       </main>
     </div>
   )
-}
-
-const styles = {
-  appContainer: {
-    minHeight: '100vh',
-    backgroundColor: '#fafafa',
-  },
-  header: {
-    backgroundColor: '#333',
-    color: 'white',
-    padding: '20px',
-    textAlign: 'center',
-  },
-  nav: {
-    marginTop: '15px',
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '10px',
-  },
-  navButton: {
-    padding: '10px 20px',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: 'bold',
-  },
-  main: {
-    padding: '20px',
-  },
 }
 
 export default App

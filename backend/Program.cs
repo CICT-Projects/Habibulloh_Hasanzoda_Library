@@ -1,49 +1,44 @@
+using Microsoft.EntityFrameworkCore;
 using backend;
+using backend.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Ensure server listens on fixed port for frontend proxy
+builder.WebHost.UseUrls("http://localhost:5000");
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Add AppDbContext with SQLite
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=library.db"));
-
-// Add CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
+// Use InMemory DB for minimal CRUD demo
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseInMemoryDatabase("LibraryDb"));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    app.UseDeveloperExceptionPage();
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
-
-app.UseCors("AllowAll");
-
-app.UseAuthorization();
-
 app.MapControllers();
 
-// Create database automatically
+// Seed some initial data
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    dbContext.Database.EnsureCreated();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (!db.Books.Any())
+    {
+        db.Books.Add(new Book { Title = "Sample Book", Year = 2025 });
+    }
+
+    if (!db.Authors.Any())
+    {
+        db.Authors.Add(new Author { Name = "Unknown", Country = "" });
+    }
+
+    db.SaveChanges();
 }
 
 app.Run();

@@ -5,11 +5,11 @@ const API_URL = 'http://localhost:5000/api/authors';
 
 export default function AuthorsManager() {
   const [authors, setAuthors] = useState([]);
-  const [formData, setFormData] = useState({ name: '', country: '' });
+  const [formData, setFormData] = useState({ id: null, name: '', country: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
-  // Загрузка авторов при старте
   useEffect(() => {
     fetchAuthors();
   }, []);
@@ -22,7 +22,7 @@ export default function AuthorsManager() {
       setError(null);
     } catch (err) {
       setError('Ошибка загрузки авторов');
-      console.error(err);
+      console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -36,7 +36,7 @@ export default function AuthorsManager() {
     }));
   };
 
-  const handleAddAuthor = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.name.trim() || !formData.country.trim()) {
@@ -45,28 +45,49 @@ export default function AuthorsManager() {
     }
 
     try {
-      const response = await axios.post(API_URL, {
-        name: formData.name,
-        country: formData.country
-      });
-      setAuthors([...authors, response.data]);
-      setFormData({ name: '', country: '' });
+      if (editingId) {
+        // Update
+        await axios.put(`${API_URL}/${editingId}`, {
+          id: editingId,
+          name: formData.name,
+          country: formData.country
+        });
+        setAuthors(authors.map(a => a.id === editingId ? { id: editingId, name: formData.name, country: formData.country } : a));
+      } else {
+        // Create
+        const response = await axios.post(API_URL, {
+          name: formData.name,
+          country: formData.country
+        });
+        setAuthors([...authors, response.data]);
+      }
+      resetForm();
       setError(null);
     } catch (err) {
-      setError('Ошибка добавления автора');
-      console.error(err);
+      setError(editingId ? 'Ошибка обновления автора' : 'Ошибка добавления автора');
+      console.error('Submit error:', err);
     }
   };
 
-  const handleDeleteAuthor = async (id) => {
+  const handleEdit = (author) => {
+    setFormData({ id: author.id, name: author.name, country: author.country });
+    setEditingId(author.id);
+  };
+
+  const handleDelete = async (id) => {
     try {
       await axios.delete(`${API_URL}/${id}`);
       setAuthors(authors.filter(author => author.id !== id));
       setError(null);
     } catch (err) {
       setError('Ошибка удаления автора');
-      console.error(err);
+      console.error('Delete error:', err);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({ id: null, name: '', country: '' });
+    setEditingId(null);
   };
 
   if (loading) return <div>Загрузка...</div>;
@@ -75,7 +96,7 @@ export default function AuthorsManager() {
     <div style={styles.container}>
       <h1>Управление Авторами</h1>
 
-      <form onSubmit={handleAddAuthor} style={styles.form}>
+      <form onSubmit={handleSubmit} style={styles.form}>
         <div style={styles.formGroup}>
           <label>Имя:</label>
           <input
@@ -100,14 +121,23 @@ export default function AuthorsManager() {
           />
         </div>
 
-        <button type="submit" style={styles.button}>Добавить автора</button>
+        <div style={styles.buttonGroup}>
+          <button type="submit" style={styles.button}>
+            {editingId ? 'Обновить' : 'Добавить'}
+          </button>
+          {editingId && (
+            <button type="button" onClick={resetForm} style={styles.cancelButton}>
+              Отмена
+            </button>
+          )}
+        </div>
       </form>
 
       {error && <p style={styles.error}>{error}</p>}
 
       <hr style={styles.separator} />
 
-      <h2>Список авторов</h2>
+      <h2>Список авторов ({authors.length})</h2>
       {authors.length === 0 ? (
         <p>Нет авторов</p>
       ) : (
@@ -117,12 +147,20 @@ export default function AuthorsManager() {
               <div>
                 <strong>{author.name}</strong> - {author.country}
               </div>
-              <button
-                onClick={() => handleDeleteAuthor(author.id)}
-                style={styles.deleteButton}
-              >
-                Удалить
-              </button>
+              <div style={styles.actions}>
+                <button
+                  onClick={() => handleEdit(author)}
+                  style={styles.editButton}
+                >
+                  ✏️
+                </button>
+                <button
+                  onClick={() => handleDelete(author.id)}
+                  style={styles.deleteButton}
+                >
+                  ✕
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -156,9 +194,23 @@ const styles = {
     borderRadius: '4px',
     fontSize: '14px',
   },
+  buttonGroup: {
+    display: 'flex',
+    gap: '10px',
+  },
   button: {
+    flex: 1,
     padding: '10px 20px',
     backgroundColor: '#4CAF50',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
+  cancelButton: {
+    padding: '10px 20px',
+    backgroundColor: '#757575',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
@@ -187,8 +239,21 @@ const styles = {
     borderRadius: '4px',
     border: '1px solid #eee',
   },
+  actions: {
+    display: 'flex',
+    gap: '5px',
+  },
+  editButton: {
+    padding: '5px 10px',
+    backgroundColor: '#2196F3',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '12px',
+  },
   deleteButton: {
-    padding: '5px 15px',
+    padding: '5px 10px',
     backgroundColor: '#f44336',
     color: 'white',
     border: 'none',
